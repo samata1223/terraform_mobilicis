@@ -1,0 +1,46 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+# Create a security group allowing inbound SSH and HTTP traffic
+resource "aws_security_group" "jenkins_sg" {
+  name        = "jenkins-security-group"
+  description = "Security group for Jenkins"
+  
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Create an EC2 instance for Jenkins
+resource "aws_instance" "jenkins_instance" {
+  ami                    = "ami-0ff8a91507f77f867"
+  instance_type          = "t2.micro"
+  key_name               = "my_key"
+  security_group_ids     = [aws_security_group.jenkins_sg.id]
+  user_data              = <<-EOF
+                            #!/bin/bash
+                            wget -q -O - https://pkg.jenkins.io/debian-stable/jenkins.io.key | sudo apt-key add -
+                            sudo sh -c 'echo deb http://pkg.jenkins.io/debian-stable binary/ > /etc/apt/sources.list.d/jenkins.list'
+                            sudo apt-get update
+                            sudo apt-get install -y openjdk-8-jdk jenkins
+                            sudo systemctl start jenkins
+                            EOF
+  
+  tags = {
+    Name = "jenkins-instance"
+  }
+}
